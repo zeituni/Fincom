@@ -29,10 +29,10 @@ type createAlertRequest struct {
 // decisionRequest is the request body for POST /alerts/{id}/decision.
 type decisionRequest struct {
 	Status       alerts.Status `json:"status"`
-	DecisionNote string        `json:"decisionNote"`
+	DecisionNote string        `json:"decision_note"`
 }
 
-// CreateAlert handles POST /alerts.
+// CreateAlert handles POST /alerts/create.
 //
 // It expects:
 //   - context value    : tenantID set by upstream auth middleware
@@ -237,7 +237,7 @@ func (h *Handler) SubmitDecision(w http.ResponseWriter, r *http.Request) {
 // Swap for chi.Router or *gin.Engine as preferred.
 func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /alerts", h.ListAlerts)
-	mux.HandleFunc("POST /alerts", h.CreateAlert)
+	mux.HandleFunc("POST /alerts/create", h.CreateAlert)
 	mux.HandleFunc("POST /alerts/{id}/escalate", h.EscalateAlert)
 	mux.HandleFunc("POST /alerts/{id}/decision", h.SubmitDecision)
 }

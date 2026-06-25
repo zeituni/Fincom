@@ -9,6 +9,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/nats-io/nats.go"
 )
 
@@ -65,6 +66,7 @@ func (svc *AlertService) Create(
 
 	// --- build alert ---
 	alert := &alerts.Alert{
+		ID:                uuid.New().String(),
 		TransactionID:     transactionID,
 		MatchedEntityName: matchedEntityName,
 		MatchScore:        matchScore,
