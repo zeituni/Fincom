@@ -340,32 +340,21 @@ func TestEscalate_Success(t *testing.T) {
 	svc := service.NewAlertService(store)
 	id, _ := createAlert(t, svc, "tenant-a", "tx-1", "Entity A", 85)
 
-	got, event, err := svc.Escalate(context.Background(), "tenant-a", id)
+	got, err := svc.Escalate(context.Background(), "tenant-a", id)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if got.Status != alerts.StatusEscalated {
 		t.Errorf("status: want ESCALATED, got %s", got.Status)
 	}
-	if event == nil {
-		t.Error("expected domain event to be emitted")
-	}
-	if event.EventType != "alert.escalated" {
-		t.Errorf("eventType: want alert.escalated, got %s", event.EventType)
-	}
-	if event.AlertID != id {
-		t.Errorf("alertID: want %s, got %s", id, event.AlertID)
-	}
-	if event.TenantID != "tenant-a" {
-		t.Errorf("tenantID: want tenant-a, got %s", event.TenantID)
-	}
+
 }
 
 func TestEscalate_NotFound(t *testing.T) {
 	store := persistence.NewMemoryStore()
 	svc := service.NewAlertService(store)
 
-	_, _, err := svc.Escalate(context.Background(), "tenant-a", "no-such-id")
+	_, err := svc.Escalate(context.Background(), "tenant-a", "no-such-id")
 	if !errors.Is(err, alerts.ErrNotFound) {
 		t.Errorf("want ErrNotFound, got %v", err)
 	}
@@ -380,7 +369,7 @@ func TestEscalate_InvalidStatus_AlreadyEscalated(t *testing.T) {
 	svc.Escalate(context.Background(), "tenant-a", id)
 
 	// Second escalation fails
-	_, _, err := svc.Escalate(context.Background(), "tenant-a", id)
+	_, err := svc.Escalate(context.Background(), "tenant-a", id)
 	if !errors.Is(err, alerts.ErrInvalidStatus) {
 		t.Errorf("want ErrInvalidStatus, got %v", err)
 	}
@@ -395,7 +384,7 @@ func TestEscalate_InvalidStatus_Cleared(t *testing.T) {
 	svc.SubmitDecision(context.Background(), "tenant-a", id, alerts.StatusCleared, "spam")
 
 	// Escalation should fail
-	_, _, err := svc.Escalate(context.Background(), "tenant-a", id)
+	_, err := svc.Escalate(context.Background(), "tenant-a", id)
 	if !errors.Is(err, alerts.ErrInvalidStatus) {
 		t.Errorf("want ErrInvalidStatus, got %v", err)
 	}
@@ -407,7 +396,7 @@ func TestEscalate_TenantIsolation(t *testing.T) {
 	id, _ := createAlert(t, svc, "tenant-a", "tx-1", "Entity A", 85)
 
 	// tenant-b should not be able to escalate tenant-a's alert
-	_, _, err := svc.Escalate(context.Background(), "tenant-b", id)
+	_, err := svc.Escalate(context.Background(), "tenant-b", id)
 	if !errors.Is(err, alerts.ErrNotFound) {
 		t.Errorf("want ErrNotFound for wrong tenant, got %v", err)
 	}

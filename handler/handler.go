@@ -158,7 +158,7 @@ func (h *Handler) EscalateAlert(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("EscalateAlert: tenant=%q, alertID=%q", tenantID, alertID)
 	// --- delegate to service ---
-	alert, event, err := h.svc.Escalate(r.Context(), tenantID, alertID)
+	alert, err := h.svc.Escalate(r.Context(), tenantID, alertID)
 	if err != nil {
 		switch {
 		case errors.Is(err, alerts.ErrInvalidInput):
@@ -172,10 +172,6 @@ func (h *Handler) EscalateAlert(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-
-	h.svc.EmitAlert(r.Context(), alert) // best-effort async emit; errors logged internally
-	log.Printf("Escalation event emitted: %+v", event)
-
 	writeJSON(w, http.StatusOK, alert)
 }
 
@@ -218,6 +214,7 @@ func (h *Handler) SubmitDecision(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// --- delegate to service ---
+	log.Printf("SubmitDecision: tenant=%q, alertID=%q", tenantID, alertID)
 	alert, err := h.svc.SubmitDecision(r.Context(), tenantID, alertID, req.Status, req.DecisionNote)
 	if err != nil {
 		switch {

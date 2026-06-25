@@ -21,9 +21,10 @@ var (
 	ErrInvalidStatus  = errors.New("invalid status transition")
 )
 
-// DomainEvent represents an event emitted by the alert domain.
-type DomainEvent struct {
-	EventType string // e.g., "alert.escalated"
+// DecisionEvent represents an event emitted by the alert domain.
+type DecisionEvent struct {
+	Event     string
+	Decision  string // e.g., "alert.escalated"
 	AlertID   string
 	TenantID  string
 	Timestamp time.Time

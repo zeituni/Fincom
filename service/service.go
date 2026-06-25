@@ -121,16 +121,16 @@ func (svc *AlertService) Escalate(
 	ctx context.Context,
 	tenantID string,
 	alertID string,
-) (*alerts.Alert, *alerts.DomainEvent, error) {
+) (*alerts.Alert, error) {
 	// --- fetch alert ---
 	alert, err := svc.store.GetByID(ctx, tenantID, alertID)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	// --- validate current status is OPEN ---
 	if alert.Status != alerts.StatusOpen {
-		return nil, nil, fmt.Errorf("%w: current status is %q, must be OPEN",
+		return nil, fmt.Errorf("%w: current status is %q, must be OPEN",
 			alerts.ErrInvalidStatus, alert.Status)
 	}
 
@@ -138,31 +138,34 @@ func (svc *AlertService) Escalate(
 	alert.Status = alerts.StatusEscalated
 
 	if err := svc.store.Update(ctx, alert); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	// --- emit domain event ---
-	event := &alerts.DomainEvent{
-		EventType: "alert.escalated",
-		AlertID:   alert.ID,
-		TenantID:  tenantID,
-		Timestamp: time.Now().UTC(),
-	}
+	log.Printf("Emiting Alert %s as Escalated", alertID)
+	svc.emitAlert(ctx, alert, "escalated") // best-effort async emit; errors logged internally
 
-	return alert, event, nil
+	return alert, nil
 }
 
 // EmitAlert publishes an alert to the NATS topic asynchronously.
 // If NATS connection is not available, it logs and returns without error.
-func (svc *AlertService) EmitAlert(ctx context.Context, alert *alerts.Alert) {
+func (svc *AlertService) emitAlert(ctx context.Context, alert *alerts.Alert, decision string) {
 	if svc.natsConn == nil {
 		return // NATS not configured, skip emission
+	}
+
+	event := &alerts.DecisionEvent{
+		Event:     "alert.decided",
+		Decision:  decision, // e.g., "alert.escalated"
+		AlertID:   alert.ID,
+		TenantID:  ctx.Value("tenantID").(string),
+		Timestamp: time.Now().UTC(),
 	}
 
 	// Run asynchronously in a goroutine
 	go func() {
 		// Marshal alert to JSON
-		payload, err := json.Marshal(alert)
+		payload, err := json.Marshal(event)
 		if err != nil {
 			// In production, log this error properly
 			fmt.Printf("failed to marshal alert %s: %v\n", alert.ID, err)
@@ -225,7 +228,8 @@ func (svc *AlertService) SubmitDecision(
 		return nil, err
 	}
 	// Decision successfully recorded; emit event asynchronously
-	svc.EmitAlert(ctx, alert) // best-effort async emit; errors logged internally
+	log.Printf("Emiting Alert %s as Decided", alert.ID)
+	svc.emitAlert(ctx, alert, "decided") // best-effort async emit; errors logged internally
 
 	return alert, nil
 }
